@@ -53,16 +53,26 @@ distinctPrimeFactors n = dpf n 1
         | otherwise            = fromIntegral (firstFactor n 2) : dpf (m `div` firstFactor n 2) (firstFactor n 2)
     firstFactor m' p = if p `isFactorOf` m' then p else firstFactor m' (p + 1)
 
+-- lists all distinct prime factors and their multiplicity
+primePowerFactors :: (Integral a, Num b, Eq b) => a -> [(b, a)]
+primePowerFactors n = ppf (0, 0) (primeFactors n)
+    where
+    ppf (l, e) [] = [(l, e)]
+    ppf (l, e) (p:ps) 
+        | l == p = ppf (l, e + 1) ps
+        | l == 0 = ppf (p, 1) ps
+        | otherwise = (l, e) : ppf (p, 1) ps
+
 factors :: (Integral a, Num b) => a -> [b]
-factors n 
+factors n
     | n == 1    = [1]
     | n == 2    = [1, 2]
     | otherwise = [fromIntegral k | k <- [1..n `div` 2 + 1], k `isFactorOf` n] ++ [fromIntegral n]
 
 properFactors :: (Integral a, Num b) => a -> [b]
-properFactors n 
+properFactors n
     | n < 2     = []
-    | n == 2    = [1] 
+    | n == 2    = [1]
     | otherwise = [fromIntegral k | k <- [1..n `div` 2 + 1], k `isFactorOf` n]
 
 -- finds if a number is twice a prime
@@ -71,6 +81,20 @@ is2prime n = even n && isPrime (n `div` 2)
 
 isPrimePower :: Integral a => a -> Bool
 isPrimePower n = n >= 2 && all (== head (primeFactors n)) (primeFactors n)
+
+-- order of a mod p, or the smallest positive exponent e s.t. a^e === 1 mod p
+-- p must be a prime
+orderMod :: (Integral a, Num b) => a -> a -> b
+orderMod a p = fromIntegral $ head $ filter ((== 1) . (`mod` p) . (a ^)) [1..p - 1]
+
+-- checks if a is a primitive root mod p, or the order of a mod p equals p - 1
+-- a prime p has phi(p - 1) primitive roots, where phi is the totient function
+isPrimitiveRoot :: Integral a => a -> a -> Bool
+isPrimitiveRoot a p = orderMod a p == p - 1
+
+-- lists all the primitive roots for some prime p
+primitiveRoots :: (Integral a, Num b) => a -> [b]
+primitiveRoots p = map fromIntegral $ filter (`isPrimitiveRoot` p) [1..p - 1]
 
 -- first prime omega function, counts distinct prime factors
 littleOmega :: (Integral a, Num b) => a -> b
@@ -94,20 +118,18 @@ mertens n = sum $ map mobius [1..n]
 
 -- Euler's totient function, counting the number of relative primes of n up to n
 totient :: (Integral a, Num b) => a -> b
-totient n = 1 + totient' 2
-    where
-    totient' k
-        | k == n       = 0
-        | gcd k n == 1 = 1 + totient' (k + 1)
-        | otherwise    = totient' (k + 1)
+totient 1 = 1
+totient n 
+    | n < 1 = undefined
+    | otherwise = fromIntegral $ product $ map totient' (primePowerFactors n)
+    where 
+    totient' (p, k)
+        | k == 1    = p - 1
+        | p == 2    = p ^ (k - 1)
+        | otherwise = (p ^ k) - (p ^ (k - 1))
 
 cototient :: (Integral a, Num b) => a -> b
-cototient n = cototient' 2
-    where
-    cototient' k
-        | k == n       = 1
-        | gcd k n == 1 = cototient' (k + 1)
-        | otherwise    = 1 + cototient' (k + 1)
+cototient n = fromIntegral n - totient n
 
 -- sum of proper divisors, only works on strictly positive integers
 aliquotSum :: (Integral a, Num b) => a -> b
@@ -153,7 +175,7 @@ isSemiperfect :: Integral a => a -> Bool -- lmao this is just subset sum
 isSemiperfect n = subsetSum n (length pfn - 1)
     where
     pfn = properFactors n
-    subsetSum k l 
+    subsetSum k l
         | k == 0         = True
         | k < 0 || l < 0 = False
         | otherwise      = subsetSum k (l - 1) || subsetSum (k - (pfn !! l)) (l - 1)
