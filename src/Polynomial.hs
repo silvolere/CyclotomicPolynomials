@@ -10,7 +10,14 @@ module Polynomial (Polynomial,
                    polyDivRem,
                    polyDivInt,
                    polyEval,
-                   valueAt
+                   polyCompose,
+                   (<.>),
+                   scale,
+                   (.*),
+                   valueAt,
+                   derive,
+                   integrate,
+                   defIntegrate
                    ) where
 
 newtype Polynomial a = Polynomial [a]
@@ -44,7 +51,7 @@ polyMult (Polynomial p1) (Polynomial p2) = Polynomial [ sum [ p1i * p2j |
 polyDivRem :: (Eq a, Fractional a) => Polynomial a -> Polynomial a -> (Polynomial a, Polynomial a)
 polyDivRem n d = polyDivRem' zeroPoly n
     where
-    polyDivRem' q r 
+    polyDivRem' q r
         | degree d > degree r = (q, r)
         | otherwise           = polyDivRem' (q + t) (r - (t * d))
         where
@@ -53,24 +60,60 @@ polyDivRem n d = polyDivRem' zeroPoly n
 polyDivInt :: (Integral a, Eq a) => Polynomial a -> Polynomial a -> Polynomial a
 polyDivInt n d = polyDivInt' zeroPoly n
     where
-    polyDivInt' q r 
+    polyDivInt' q r
         | degree d > degree r = q
         | otherwise           = polyDivInt' (q + t) (r - (t * d))
         where
             t = listPoly $ replicate (degree r - degree d) 0 ++ [lead r `div` lead d]
 
+-- plug some x^n in a polynomaial p(x)
 polyEval :: (Num a, Eq a) => Polynomial a -> (a, Int) -> Polynomial a
 polyEval (Polynomial p) (c, d) = listPoly $ zeroIntersperse $ zipWith (*) p [c ^ i | i <- ([0..] :: [Integer])]
     where
     zeroIntersperse []     = []
     zeroIntersperse (x:xs) = x : replicate (d - 1) 0 ++ zeroIntersperse xs
 
-valueAt :: (Num a, Eq a) => Polynomial a -> a -> a
+-- finds h(x) = g(f(x)) where g and f are polynomials
+polyCompose :: (Num a, Eq a) => Polynomial a -> Polynomial a -> Polynomial a
+polyCompose (Polynomial g) f = sum $ zipWith (.*) g [f ^ i | i <- [0..] :: [Integer]]
+
+-- infix polynomial composition
+(<.>) :: (Num a, Eq a) => Polynomial a -> Polynomial a -> Polynomial a
+(<.>) = polyCompose
+
+-- multiply all coefficients by some scalar x
+scale :: (Num a, Eq a) => a -> Polynomial a -> Polynomial a
+scale x (Polynomial p) = listPoly $ map (x *) p
+
+-- infix version of scale
+(.*) ::  (Num a, Eq a) => a -> Polynomial a -> Polynomial a
+(.*) = scale
+
+-- plug some value in a polynomial
+valueAt :: Num a => Polynomial a -> a -> a
 valueAt (Polynomial p) x = valueAt' p 0
     where
     valueAt' [] _      = 0
     valueAt' (c:cs) ex = c * (x ^ (ex :: Integer)) + valueAt' cs (ex + 1)
 
+-- derivative of polynomial with respect to x
+derive :: (Num a, Eq a) => Polynomial a -> Polynomial a
+derive (Polynomial p)
+    | null p    = zeroPoly
+    | otherwise = listPoly $ zipWith (*) (tail p) (rep 1)
+    where rep n = n : rep (n + 1) -- used this instead of [1..] to get around enum typeclass lol
+
+-- integral of p(x) with respect to x, ignore constant term +C (maybe I'll add a way to represent constants in the future)
+integrate :: (Fractional a, Num a, Eq a) => Polynomial a -> Polynomial a
+integrate (Polynomial p)
+    | null p    = zeroPoly
+    | otherwise = listPoly $ 0 : zipWith (/) p (rep 1)
+    where rep n = n : rep (n + 1)
+
+-- definite integral with bounds from a to b
+defIntegrate :: (Fractional a, Eq a) => a -> a -> Polynomial a -> a
+defIntegrate a b p = valueAt i b - valueAt i a
+    where i = integrate p
 
 zeroReduce :: (Num a, Eq a) => [a] -> [a]
 zeroReduce xs = zeroCount xs 0
@@ -121,3 +164,17 @@ instance (Num a, Eq a, Show a, Ord a) => Show (Polynomial a) where
             | take 2 s == "+ " = drop 2 s
             | take 2 s == "- " = "-" ++ drop 2 s
             | otherwise        = s
+
+instance Functor Polynomial where
+    fmap :: (a -> b) -> Polynomial a -> Polynomial b
+    fmap f (Polynomial p) = Polynomial (map f p)
+
+instance Applicative Polynomial where
+    pure :: a -> Polynomial a
+    pure x = Polynomial [x]
+
+    (<*>) :: Polynomial (a -> b) -> Polynomial a -> Polynomial b
+    (<*>) (Polynomial f) (Polynomial p) = Polynomial (f <*> p)
+
+--instance Monad Polynomial where
+--    (>>=) (Polynomial p) f = 
