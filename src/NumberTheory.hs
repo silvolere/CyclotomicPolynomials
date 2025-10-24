@@ -181,15 +181,17 @@ carmichael n
 -- works the same
 legendre :: Integral a => a -> a -> a
 legendre n p
-    | even p                                       = n `mod` p
+    | n == 0                                       = 0
+    | p == 2                                       = n `mod` p
     | n == 1                                       = 1
     | n == p - 1 && p `mod` 4 == 1                 = 1
     | n == p - 1                                   = -1
     | n == 2 && (p `mod` 8 == 1 || p `mod` 8 == 7) = 1
     | n == 2                                       = -1
-    | n > p                                        = legendre (n `mod` p) p
+    | n >= p                                       = legendre (n `mod` p) p
     | even n                                       = legendre 2 p * legendre (n `div` 2) p
-    | otherwise                                    = legendre (p `mod` n) n
+    | p `mod` 4 == 1 || n `mod` 4 == 1             = legendre (p `mod` n) n
+    | p `mod` 4 == 3 && n `mod` 4 == 3             = -legendre (p `mod` n) n
 
 -- sum of proper divisors, only works on strictly positive integers
 aliquotSum :: (Integral a, Num b) => a -> b
