@@ -50,7 +50,7 @@ distinctPrimeFactors n = dpf n 1
         | isPrime m && m == l  = []
         | isPrime m            = [fromIntegral m]
         | firstFactor m 2 == l = dpf (m `div` l) l
-        | otherwise            = fromIntegral (firstFactor n 2) : dpf (m `div` firstFactor n 2) (firstFactor n 2)
+        | otherwise            = fromIntegral (firstFactor m 2) : dpf (m `div` firstFactor m 2) (firstFactor m 2)
     firstFactor m' p = if p `isFactorOf` m' then p else firstFactor m' (p + 1)
 
 -- lists all distinct prime factors and their multiplicity
@@ -154,10 +154,17 @@ inverseTotient m
     | odd m     = []
     | otherwise = [fromIntegral n | n <- [(m + 1)..(2 * (m ^ 2))], m == totient n]
 
--- Dirichlet inverse of phi 
+-- Dirichlet inverse of totient 
 dirInvTotient :: (Integral a, Num b) => a -> b
 dirInvTotient n = fromIntegral $ sum [d * mobius d | d <- factors n]
 
+-- Jordan's totient funciton
+jTotient :: (Integral a, Num b, Eq b) => a -> a -> b
+jTotient k n
+    | n == 1    = 1
+    | otherwise = product (map (\(a, b) -> a ^ ((b - 1) * k)) (primePowerFactors n)) * product (map ((+ (-1)) . (^ k)) (distinctPrimeFactors n))
+
+-- Carmichael Function
 carmichael :: (Integral a, Num b) => a -> b
 carmichael n
     | n < 1 = undefined
@@ -168,6 +175,21 @@ carmichael n
         | k == 1    = p - 1
         | p == 2    = p ^ (k - 2)
         | otherwise = (p - 1) * (p ^ (k - 1))
+
+-- Legendre symbol: 1 if n is a quadradic residue mod p, -1 for quadradic nonresidue, 0 for a === 0.
+-- It becomes the Jacobi symbol when p is not prime (but still odd), though all of the computation
+-- works the same
+legendre :: Integral a => a -> a -> a
+legendre n p
+    | even p                                       = n `mod` p
+    | n == 1                                       = 1
+    | n == p - 1 && p `mod` 4 == 1                 = 1
+    | n == p - 1                                   = -1
+    | n == 2 && (p `mod` 8 == 1 || p `mod` 8 == 7) = 1
+    | n == 2                                       = -1
+    | n > p                                        = legendre (n `mod` p) p
+    | even n                                       = legendre 2 p * legendre (n `div` 2) p
+    | otherwise                                    = legendre (p `mod` n) n
 
 -- sum of proper divisors, only works on strictly positive integers
 aliquotSum :: (Integral a, Num b) => a -> b
@@ -234,6 +256,9 @@ isPerfectTotient n = n == ipt n
 isWeird :: Integral a => a -> Bool
 isWeird n = isAbundant n && not (isSemiperfect n)
 
+isUnusual :: (Integral a) => a -> Bool
+isUnusual n = (sqrt . fromIntegral) n < last (primeFactors n)
+
 isHighlyComposite :: Integral a => a -> Bool
 isHighlyComposite n = all ((< divisorCount n) . divisorCount) [1..n - 1]
 
@@ -250,7 +275,20 @@ isPowerful n = dupCheck $ primeFactors n
 
 -- prime factors of n are less than or equal to b
 isBsmooth :: Integral a => a -> a -> Bool
-isBsmooth b n = b >= last (distinctPrimeFactors n)
+isBsmooth b n = (abs n <= 2) || (b >= last (primeFactors n))
+
+
+-- same as above but with prime powers
+isBpowerSmooth :: Integral a => a -> a -> Bool
+isBpowerSmooth b n = all ((<= b) . uncurry (^)) $ primePowerFactors n
+
+-- analogous to B-smooth but for greater than or equal
+isKrough :: Integral a => a -> a -> Bool
+isKrough k n = (abs k > 1) || (k <= head (primeFactors n))
+
+-- ^^^
+isKpowerRough :: Integral a => a -> a -> Bool
+isKpowerRough k n = all ((>= k) . uncurry (^)) $ primePowerFactors n
 
 -- generates the nth primitive pythagorean triple via (a,b,c) = (u^2 - v^2, 2uv, u^2 + v^2) for some integers u,v
 pythagTriple :: (Num a, Num b, Num c) => Int -> (a, b, c)
