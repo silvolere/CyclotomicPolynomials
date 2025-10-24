@@ -192,6 +192,7 @@ legendre n p
     | even n                                       = legendre 2 p * legendre (n `div` 2) p
     | p `mod` 4 == 1 || n `mod` 4 == 1             = legendre (p `mod` n) n
     | p `mod` 4 == 3 && n `mod` 4 == 3             = -legendre (p `mod` n) n
+    | otherwise                                    = undefined
 
 -- sum of proper divisors, only works on strictly positive integers
 aliquotSum :: (Integral a, Num b) => a -> b
