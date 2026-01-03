@@ -75,6 +75,23 @@ properFactors n
     | n == 2    = [1]
     | otherwise = [fromIntegral k | k <- [1..n `div` 2 + 1], k `isFactorOf` n]
 
+-- represents a positive integer as a sum of powers of 2, empty list for negatives
+-- left is most significant digit
+binaryExpr :: (Integral a, Num b) => a -> [b]
+binaryExpr n
+    | n < 0     = []
+    | n == 0    = [0]
+    | n == 1    = [1]
+    | otherwise = fromIntegral (gm2 n 0) : binaryExpr (n - gm2 n 0)
+    where gm2 i e = if (2 ^ e) > i then 2 ^ (e - 1) else gm2 i (e + 1)
+
+-- is a power of 2 or minus a power of 2
+isPower2 :: Integral a => a -> Bool
+isPower2 n 
+    | even n          = isPower2 $ n `div` 2
+    | n < 3 && n > -3 = True
+    | otherwise       = False 
+
 -- finds if a number is twice a prime
 is2prime :: Integral a => a -> Bool
 is2prime n = even n && isPrime (n `div` 2)
@@ -83,7 +100,7 @@ isPrimePower :: Integral a => a -> Bool
 isPrimePower n = n >= 2 && all (== head (primeFactors n)) (primeFactors n)
 
 -- for some positive integers a and b, finds some integers x and y s.t. ax + by = gcd(a,b), returns x, y, gcd(a,b)
-extendGCD :: (Integral t, Num a, Num b, Num c) => t -> t -> (a, b, c)
+extendGCD :: (Integral a, Num b) => a -> a -> (b, b, b)
 extendGCD a b = if b > a then egcd b a (b `div` a) 0 1 1 0 else egcd a b (a `div` b) 1 0 0 1
     where
     egcd c d q x1 y1 x2 y2
@@ -94,6 +111,10 @@ extendGCD a b = if b > a then egcd b a (b `div` a) 0 1 1 0 else egcd a b (a `div
 -- p must be a prime
 orderMod :: (Integral a, Num b) => a -> a -> b
 orderMod a p = fromIntegral $ head $ filter ((== 1) . (`mod` p) . (a ^)) [1..p - 1]
+
+-- inverse of a mod p, i.e. finds b s.t. ab = 1. Not guaenteed to work with non primes for p
+inverseMod :: (Integral a, Num b, Ord b) => a -> a -> b
+inverseMod a p = let b = (\(t, _, _) -> t) $ extendGCD a p in if b < 0 then b + fromIntegral p else b
 
 -- checks if a is a primitive root mod p, or the order of a mod p equals p - 1
 -- a prime p has phi(p - 1) primitive roots, where phi is the totient function
