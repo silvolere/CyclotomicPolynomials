@@ -64,7 +64,8 @@ library
                       CyclotomicPoly,
                       Complex,
                       GaussianInteger,
-                      EllipticCurve
+                      EllipticCurve,
+                      LaurentPolynomial
 
     -- Modules included in this library but not exported.
     -- other-modules:

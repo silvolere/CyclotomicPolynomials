@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 module NumberTheory where
+import Control.Monad (join)
 
 isFactorOf :: Integral a => a -> a -> Bool
 isFactorOf a n = n `mod` a == 0
@@ -87,10 +88,10 @@ binaryExpr n
 
 -- is a power of 2 or minus a power of 2
 isPower2 :: Integral a => a -> Bool
-isPower2 n 
+isPower2 n
     | even n          = isPower2 $ n `div` 2
     | n < 3 && n > -3 = True
-    | otherwise       = False 
+    | otherwise       = False
 
 -- finds if a number is twice a prime
 is2prime :: Integral a => a -> Bool
@@ -98,6 +99,12 @@ is2prime n = even n && isPrime (n `div` 2)
 
 isPrimePower :: Integral a => a -> Bool
 isPrimePower n = n >= 2 && all (== head (primeFactors n)) (primeFactors n)
+
+squaresBefore :: (Integral a, Num b) => a -> [b]
+squaresBefore n = [fromIntegral s ^ 2 | s <- [1..isqrt (n - 1)]]
+
+squaresBeforeSquare :: (Integral a, Num b) => a -> [b]
+squaresBeforeSquare n = [fromIntegral s ^ 2 | s <- [1..n - 1]]
 
 -- for some positive integers a and b, finds some integers x and y s.t. ax + by = gcd(a,b), returns x, y, gcd(a,b)
 extendGCD :: (Integral a, Num b) => a -> a -> (b, b, b)
@@ -180,8 +187,8 @@ dirInvTotient :: (Integral a, Num b) => a -> b
 dirInvTotient n = fromIntegral $ sum [d * mobius d | d <- factors n]
 
 -- Jordan's totient funciton
-jTotient :: (Integral a, Num b, Eq b) => a -> a -> b
-jTotient k n
+jordanTotient :: (Integral a, Num b, Eq b) => a -> a -> b
+jordanTotient k n
     | n == 1    = 1
     | otherwise = product (map (\(a, b) -> a ^ ((b - 1) * k)) (primePowerFactors n)) * product (map ((+ (-1)) . (^ k)) (distinctPrimeFactors n))
 
@@ -297,6 +304,10 @@ isPowerful n = dupCheck $ primeFactors n
         | p == head ps = dupCheck (filter (p /=) ps)
         | otherwise    = False
 
+--isPractical
+
+--isPernicious
+
 -- prime factors of n are less than or equal to b
 isBsmooth :: Integral a => a -> a -> Bool
 isBsmooth b n = (abs n <= 2) || (b >= last (primeFactors n))
@@ -317,3 +328,20 @@ isKpowerRough k n = all ((>= k) . uncurry (^)) $ primePowerFactors n
 -- generates the nth primitive pythagorean triple via (a,b,c) = (u^2 - v^2, 2uv, u^2 + v^2) for some integers u,v
 pythagTriple :: (Num a, Num b, Num c) => Int -> (a, b, c)
 pythagTriple n = [(fromIntegral ((u ^ 2) - (v ^ 2)), fromIntegral (2 * u * v), fromIntegral ((u ^ 2) + (v ^ 2))) | u <- [2..], v <- [1..u - 1], odd (u + v)] !! (n - 1)
+
+-- generates all pythagorean triples with one of the sides of length n
+pythagTriplesSide :: (Num a, Num b, Num c) => Int -> [(a, b, c)]
+pythagTriplesSide n = []
+
+pythagTriplesSideA :: (Num a, Num b, Num c) => Int -> [(a, b, c)]
+pythagTriplesSideA n = map (\(a, b, c) -> (fromIntegral (a * (n `div` a)), fromIntegral (b * (n `div` a)), fromIntegral (c * (n `div` a)))) $ join $ map ptsA $ n : distinctPrimeFactors n
+  where
+    ptsA k = [(k, 2 * isqrt u * isqrt v, u + k) | u <- squaresBefore (2 * k), v <- squaresBefore u, u - v == k]
+
+pythagTriplesSideB :: (Num a, Num b, Num c) => Int -> [(a, b, c)]
+pythagTriplesSideB n = []
+
+pythagTriplesSideC :: (Num a, Num b, Num c) => Int -> [(a, b, c)]
+pythagTriplesSideC n = map (\(a, b, c) -> (fromIntegral (a * (n `div` c)), fromIntegral (b * (n `div` c)), fromIntegral (c * (n `div` c)))) $ join $ map ptsC $ n : distinctPrimeFactors n
+  where
+    ptsC k = [(u - v, 2 * isqrt u * isqrt v, k) | u <- squaresBefore k, v <- squaresBefore u, u + v == k]

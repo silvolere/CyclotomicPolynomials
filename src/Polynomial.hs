@@ -9,16 +9,16 @@ module Polynomial (Polynomial,
                    polyMult,
                    polyDivRem,
                    polyDivInt,
-                   polyEval,
+                   polyApply,
                    polyCompose,
                    (<.>),
                    scale,
                    (.*),
-                   valueAt,
+                   evaluate,
                    derive,
                    integrate,
                    defIntegrate
-                   ) where
+                  ) where
 
 newtype Polynomial a = Polynomial [a]
 
@@ -43,10 +43,10 @@ polyAdd (Polynomial p1) (Polynomial p2) = Polynomial $ zipWith (+) (extend p1) (
     extend p = take (max (length p1) (length p2)) (p ++ repeat 0)
 
 polyMult :: Num a => Polynomial a -> Polynomial a -> Polynomial a
-polyMult (Polynomial p1) (Polynomial p2) = Polynomial [ sum [ p1i * p2j |
+polyMult (Polynomial p1) (Polynomial p2) = Polynomial [sum [ p1i * p2j |
                                                       (p1i, i) <- zip p1 [0..],
                                                       (p2j, j) <- zip p2 [0..],
-                                                      i + j == k ] | k <- [0 .. (length p1 + length p2 - 2)] ]
+                                                      i + j == k ] | k <- [0..(length p1 + length p2 - 2)]]
 
 polyDivRem :: (Eq a, Fractional a) => Polynomial a -> Polynomial a -> (Polynomial a, Polynomial a)
 polyDivRem n d = polyDivRem' zeroPoly n
@@ -67,8 +67,8 @@ polyDivInt n d = polyDivInt' zeroPoly n
             t = listPoly $ replicate (degree r - degree d) 0 ++ [lead r `div` lead d]
 
 -- plug some x^n in a polynomaial p(x)
-polyEval :: (Num a, Eq a) => Polynomial a -> (a, Int) -> Polynomial a
-polyEval (Polynomial p) (c, d) = listPoly $ zeroIntersperse $ zipWith (*) p [c ^ i | i <- ([0..] :: [Integer])]
+polyApply :: (Num a, Eq a) => Polynomial a -> (a, Int) -> Polynomial a
+polyApply (Polynomial p) (c, d) = listPoly $ zeroIntersperse $ zipWith (*) p [c ^ i | i <- ([0..] :: [Integer])]
     where
     zeroIntersperse []     = []
     zeroIntersperse (x:xs) = x : replicate (d - 1) 0 ++ zeroIntersperse xs
@@ -83,18 +83,18 @@ polyCompose (Polynomial g) f = sum $ zipWith (.*) g [f ^ i | i <- [0..] :: [Inte
 
 -- multiply all coefficients by some scalar x
 scale :: (Num a, Eq a) => a -> Polynomial a -> Polynomial a
-scale x (Polynomial p) = listPoly $ map (x *) p
+scale x = fmap (* x)
 
 -- infix version of scale
 (.*) ::  (Num a, Eq a) => a -> Polynomial a -> Polynomial a
 (.*) = scale
 
 -- plug some value in a polynomial
-valueAt :: Num a => Polynomial a -> a -> a
-valueAt (Polynomial p) x = valueAt' p 0
+evaluate :: Num a => Polynomial a -> a -> a
+evaluate (Polynomial p) x = ev p 0
     where
-    valueAt' [] _      = 0
-    valueAt' (c:cs) ex = c * (x ^ (ex :: Integer)) + valueAt' cs (ex + 1)
+    ev [] _      = 0
+    ev (c:cs) ex = c * (x ^ (ex :: Integer)) + ev cs (ex + 1)
 
 -- derivative of polynomial with respect to x
 derive :: (Num a, Eq a) => Polynomial a -> Polynomial a
@@ -112,7 +112,7 @@ integrate (Polynomial p)
 
 -- definite integral with bounds from a to b
 defIntegrate :: (Fractional a, Eq a) => a -> a -> Polynomial a -> a
-defIntegrate a b p = valueAt i b - valueAt i a
+defIntegrate a b p = evaluate i b - evaluate i a
     where i = integrate p
 
 zeroReduce :: (Num a, Eq a) => [a] -> [a]
@@ -153,13 +153,13 @@ instance (Num a, Eq a, Show a, Ord a) => Show (Polynomial a) where
         _  -> shaveOpp $ unwords $ reverse terms
         where
         terms = [showTerm c i | (c, i) <- zip p ([0..] :: [Integer]), c /= 0]
-        showTerm c 0 = if c > 0 then "+ " ++ show c else "- " ++ tail (show c)
-        showTerm 1 1 = "+ x"
+        showTerm c 0    = if c > 0 then "+ " ++ show c else "- " ++ tail (show c)
+        showTerm 1 1    = "+ x"
         showTerm (-1) 1 = "- x"
-        showTerm c 1 = if c > 0 then "+ " ++ show c ++ "x" else "- " ++ tail (show c) ++ "x"
-        showTerm 1 i = "+ x^" ++ show i
+        showTerm c 1    = if c > 0 then "+ " ++ show c ++ "x" else "- " ++ tail (show c) ++ "x"
+        showTerm 1 i    = "+ x^" ++ show i
         showTerm (-1) i = "- x^" ++ show i
-        showTerm c i = if c > 0 then "+ " ++ show c ++ "x^" ++ show i else "- " ++ tail (show c) ++ "x^" ++ show i
+        showTerm c i    = if c > 0 then "+ " ++ show c ++ "x^" ++ show i else "- " ++ tail (show c) ++ "x^" ++ show i
         shaveOpp s
             | take 2 s == "+ " = drop 2 s
             | take 2 s == "- " = "-" ++ drop 2 s
@@ -175,6 +175,3 @@ instance Applicative Polynomial where
 
     (<*>) :: Polynomial (a -> b) -> Polynomial a -> Polynomial b
     (<*>) (Polynomial f) (Polynomial p) = Polynomial (f <*> p)
-
---instance Monad Polynomial where
---    (>>=) (Polynomial p) f = 
