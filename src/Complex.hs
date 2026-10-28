@@ -21,8 +21,8 @@ conjugate (Complex (a, b)) = toComplex (a, -b)
 modulus :: Floating a => Complex a -> a
 modulus (Complex (a, b)) = sqrt ((a * a) + (b * b))
 
-squareMagnitude :: Num a => Complex a -> a
-squareMagnitude (Complex (a, b)) = (a * a) + (b * b)
+squareModulus :: Num a => Complex a -> a
+squareModulus (Complex (a, b)) = (a * a) + (b * b)
 
 arg :: RealFloat a => Complex a -> a
 arg (Complex (a, b)) = atan2 b a
